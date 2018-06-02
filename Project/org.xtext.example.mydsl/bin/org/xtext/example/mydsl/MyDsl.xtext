@@ -1,0 +1,126 @@
+grammar org.xtext.example.mydsl.MyDsl with org.eclipse.xtext.common.Terminals
+
+generate myDsl "http://www.xtext.org/example/mydsl/MyDsl"
+
+
+Model:
+	members+=Member*
+;
+
+Member:
+	ServerEntity | MemberEntity | Verb
+;
+	
+ServerEntity returns Entity :
+	'#' name=ID is=IsServer attributes+=Attribute*
+;
+
+IsServer:
+	value = 'SERVER'
+;
+
+MemberEntity returns Entity:
+	'#' name=ID attributes+=Attribute*
+;
+	
+Attribute:
+	'->' name=ID ':' value=ValueType;
+
+ValueType:
+	elementType=ElementType
+;
+
+ElementType:
+	BasicType | EntityType | ArrayType
+;
+
+EntityType:
+	entity=[Entity]
+;
+
+BasicType:
+	{IntType} value=INT |
+	{StringType} value=STRING |
+	{BoolType} value=('true'|'false')
+;
+
+ArrayType:
+	arrayElements+=ArrayElement+
+;
+
+ArrayElement:
+	'-' value=BasicType
+;
+
+Verb:
+	'@' verb=('get' | 'put' | 'post' | 'delete') qa=QualifiedName rules+=Rule
+;
+
+Rule:
+	condition=Condition url=ArrayType
+;
+
+Condition:
+	'REQUIRE' '(' expression=Expression ')'
+;
+
+Expression: 
+	Or
+;
+
+Or returns Expression:
+	And ({Or.left=current} '||' right=And)*
+;
+
+And returns Expression:
+	Equality ({And.left=current} '&&' right=Equality)*
+;
+
+Equality returns Expression:
+	Comparison(
+		{Equality.left=current} op=('=='|'!=')
+		right=Comparison
+	)*
+;
+
+Comparison returns Expression:
+	PlusOrMinus(
+		{Comparison.left=current} op=('>='|'<='|'>'|'<')
+		right=PlusOrMinus
+	)*
+;
+
+PlusOrMinus returns Expression:
+	MulOrDiv(
+		({Plus.left=current} '+' | {Minus.left=current} '-')
+		right=MulOrDiv
+	)*
+;
+
+MulOrDiv returns Expression:
+	Primary (
+	({MulOrDiv.left=current} op=('*'|'/'))
+	right=Primary
+)*;
+
+Primary returns Expression:
+	//We add a rule for parsing expressions in parentheses:
+	'(' Expression ')' |
+	//We add a rule for boolean negation (operator "!");
+	{Not} '!' expression=Primary |
+	Atomic
+;
+
+Atomic returns Expression:
+	//Other rules for expressions
+	{IntConstant} value=INT |
+	{StringConstant} value=STRING |
+	{BoolConstant} value=('True'|'False') |
+	{VariableConstant} value=[Attribute|QualifiedName]
+;
+
+QualifiedName:
+	ID ('.' ID)*
+;
+
+	
